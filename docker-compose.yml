@@ -86,7 +86,7 @@ services:
 
   celery_worker:
     image: wger/server:latest
-    command: /start-worker
+    command: bash -c "cd /home/wger && celery -A wger worker --loglevel=info"
     environment:
       SECRET_KEY: ${SECRET_KEY}
       DJANGO_SETTINGS_MODULE: wger.settings.production
@@ -103,12 +103,6 @@ services:
     depends_on:
       web:
         condition: service_healthy
-    healthcheck:
-      test: celery -A wger inspect ping
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
 
   celery_beat:
     image: wger/server:latest
