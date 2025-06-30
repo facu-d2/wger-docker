@@ -1,10 +1,3 @@
-#
-# Please consult the `Deployment` section in the docs if you want to deploy
-# this. You *need* to keep this nginx service, even if you have your own,
-# otherwise the static files will not be served correctly! If you do remove
-# it, configure yours similarly to what's in config/nginx.conf
-# Also take a look at the "Static files" section in the .env file
-
 services:
   web:
     image: wger/server:latest
@@ -13,8 +6,18 @@ services:
         condition: service_healthy
       cache:
         condition: service_healthy
-    env_file:
-      - ./config/prod.env
+    environment:
+      SECRET_KEY: ${SECRET_KEY}
+      DEBUG: "False"
+      DJANGO_SETTINGS_MODULE: wger.settings.production
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      REDIS_URL: redis://cache:6379/0
+      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS}
     volumes:
       - static:/home/wger/static
       - media:/home/wger/media
@@ -49,16 +52,16 @@ services:
   db:
     image: postgres:15-alpine
     environment:
-      - POSTGRES_USER=wger
-      - POSTGRES_PASSWORD=wger
-      - POSTGRES_DB=wger
-      - TZ=Europe/Berlin
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      TZ: Europe/Berlin
     volumes:
       - postgres-data:/var/lib/postgresql/data/
     expose:
       - 5432
     healthcheck:
-      test: pg_isready -U wger
+      test: pg_isready -U ${POSTGRES_USER}
       interval: 10s
       timeout: 5s
       retries: 5
@@ -81,15 +84,20 @@ services:
       start_period: 30s
     restart: unless-stopped
 
-    # You probably want to limit the memory usage of the cache, otherwise it might
-    # hog all the available memory. Remove or change according to your needs.
-    #mem_limit: 5gb
-
   celery_worker:
     image: wger/server:latest
     command: /start-worker
-    env_file:
-      - ./config/prod.env
+    environment:
+      SECRET_KEY: ${SECRET_KEY}
+      DJANGO_SETTINGS_MODULE: wger.settings.production
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      REDIS_URL: redis://cache:6379/0
+      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS}
     volumes:
       - media:/home/wger/media
     depends_on:
@@ -107,8 +115,17 @@ services:
     command: /start-beat
     volumes:
       - celery-beat:/home/wger/beat/
-    env_file:
-      - ./config/prod.env
+    environment:
+      SECRET_KEY: ${SECRET_KEY}
+      DJANGO_SETTINGS_MODULE: wger.settings.production
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      REDIS_URL: redis://cache:6379/0
+      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS}
     depends_on:
       celery_worker:
         condition: service_healthy
@@ -117,10 +134,6 @@ volumes:
   postgres-data:
   celery-beat:
   redis-data:
-
-  # Heads up, if you remove these volumes and use folders directly you need to chown them
-  # to the UID and GID 1000 even if it doesn't exist on your system. Also, they should
-  # be readable by everyone.
   media:
   static:
 
